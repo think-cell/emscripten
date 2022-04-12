@@ -214,6 +214,7 @@ class Mode(Enum):
   PREPROCESS_ONLY = auto()
   PCH = auto()
   COMPILE_ONLY = auto()
+  TYPESCRIPTEN_ONLY = auto()
   POST_LINK_ONLY = auto()
   COMPILE_AND_LINK = auto()
 
@@ -254,6 +255,9 @@ class EmccOptions:
     self.post_js = [] # after all js
     self.extern_pre_js = [] # before all js, external to optimized code
     self.extern_post_js = [] # after all js, external to optimized code
+    self.ts_generate = []
+    self.ts_generate_lib = []
+    self.ts_output = ''
     self.preload_files = []
     self.embed_files = []
     self.exclude_files = []
@@ -1270,6 +1274,18 @@ def phase_parse_arguments(state):
   if options.post_link or options.oformat == OFormat.BARE:
     diagnostics.warning('experimental', '--oformat=bare/--post-link are experimental and subject to change.')
 
+  if options.ts_generate or options.ts_generate_lib:
+    diagnostics.warning('experimental', '--ts-generate and --ts-generate-lib are experimental and subject to change.')
+    if options.ts_output:
+      newargs += [
+        '-I' + os.path.dirname(options.ts_output), 
+        '-I' + utils.path_from_root('node_modules/@think-cell/typescripten/include'),
+        '-DBOOST_HANA_CONFIG_ENABLE_STRING_UDL'
+      ]
+      options.pre_js.append(utils.path_from_root('node_modules/@think-cell/typescripten/src/callback.js'))
+    else:
+      exit_with_error('cannot specify --ts-generate and --ts-generate-lib without specifying the output file --ts-output')
+
   explicit_settings_changes, newargs = parse_s_args(newargs)
   settings_changes += explicit_settings_changes
 
@@ -1332,7 +1348,8 @@ def phase_setup(options, state, newargs, user_settings):
                '-iprefix', '-iwithprefix', '-iwithprefixbefore',
                '-isysroot', '-imultilib', '-A', '-isystem', '-iquote',
                '-install_name', '-compatibility_version',
-               '-current_version', '-I', '-L', '-include-pch',
+               '-current_version', '-I', '-L', '-include-pch', 
+               '-ts-generate', '-ts-generate-lib',
                '-Xlinker', '-Xclang'):
       skip = True
 
@@ -1390,7 +1407,8 @@ def phase_setup(options, state, newargs, user_settings):
       input_files.append((i, arg))
       newargs[i] = ''
 
-  if not input_files and not state.link_flags:
+  ts_generate = options.ts_generate or options.ts_generate_lib
+  if not input_files and not state.link_flags and not ts_generate:
     exit_with_error('no input files')
 
   newargs = [a for a in newargs if a]
@@ -1411,6 +1429,9 @@ def phase_setup(options, state, newargs, user_settings):
     state.mode = Mode.PCH
   elif state.has_dash_c or state.has_dash_S:
     state.mode = Mode.COMPILE_ONLY
+  elif not input_files and not state.link_flags:
+    assert ts_generate
+    state.mode = Mode.TYPESCRIPTEN_ONLY
 
   if state.mode in (Mode.COMPILE_ONLY, Mode.PREPROCESS_ONLY):
     for key in user_settings:
@@ -2759,6 +2780,47 @@ def phase_compile_inputs(options, state, newargs, input_files):
       shared.check_call(cmd)
       return []
 
+
+  # compile TypeScript interface definitions
+  if options.ts_generate or options.ts_generate_lib:
+    # always include the base JS library. Currently we always use ES2015 but this 
+    # should be customizable using --ts-generate-lib 
+    ts_inputs = list(map(
+      lambda file: utils.path_from_root(file), 
+      [      
+        'node_modules/typescript/lib/lib.es5.d.ts',
+        'node_modules/typescript/lib/lib.es2015.core.d.ts',
+        'node_modules/typescript/lib/lib.es2015.collection.d.ts',
+        'node_modules/typescript/lib/lib.es2015.iterable.d.ts',
+        'node_modules/typescript/lib/lib.es2015.generator.d.ts',
+        'node_modules/typescript/lib/lib.es2015.promise.d.ts',
+        'node_modules/typescript/lib/lib.es2015.proxy.d.ts',
+        'node_modules/typescript/lib/lib.es2015.reflect.d.ts',
+        'node_modules/typescript/lib/lib.es2015.symbol.d.ts',
+        'node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts'
+      ]
+    ))
+     
+    if 'dom' in options.ts_generate_lib:
+      ts_inputs.append(utils.path_from_root('node_modules/typescript/lib/lib.dom.d.ts'))
+
+    ts_inputs += options.ts_generate
+
+    for file in ts_inputs:
+      if not os.path.isfile(file):
+        exit_with_error(f'{file} is not a valid file')
+
+    ts_output_dir = os.path.dirname(options.ts_output)
+    if ts_output_dir and not ts_output_dir in ['.', '..']:
+      utils.safe_ensure_dirs(ts_output_dir)
+    
+    cmd = utils.path_from_root('node_modules/@think-cell/typescripten/bin/typescriptenc.js')
+    logger.debug(f"running typescriptenc.js: {cmd} {' '.join(ts_inputs)} > {options.ts_output}")
+    shared.run_js_tool(cmd, ts_inputs, cwd=utils.path_from_root('.'), stdout=open(options.ts_output, 'w'))
+
+    if state.mode == Mode.TYPESCRIPTEN_ONLY:
+      return []
+
   linker_inputs = []
   seen_names = {}
 
@@ -3172,6 +3234,16 @@ def parse_args(newargs):
       options.extern_pre_js.append(consume_arg_file())
     elif check_arg('--extern-post-js'):
       options.extern_post_js.append(consume_arg_file())
+    elif check_arg('--ts-generate'):
+      options.ts_generate.append(consume_arg_file())      
+    elif check_arg('--ts-generate-lib'):
+      lib = consume_arg()
+      tslibs = ['es2015', 'dom']
+      if lib not in tslibs:
+        exit_with_error('invalid TypeScript library specified: `%s` (must be one of %s)' % (lib, tslibs))
+      options.ts_generate_lib.append(lib)
+    elif check_arg('--ts-output'):
+      options.ts_output = consume_arg()
     elif check_arg('--compiler-wrapper'):
       config.COMPILER_WRAPPER = consume_arg()
     elif check_flag('--post-link'):

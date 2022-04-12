@@ -840,6 +840,17 @@ class libnoexit(Library):
   src_dir = 'system/lib/libc'
   src_files = ['atexit_dummy.c']
 
+class libtypescripten(Library):
+  name = 'libtypescripten'
+  src_dir = 'node_modules/@think-cell/typescripten/src'
+  src_files = ['callback.cpp']
+  
+  includes = [
+    'system/include/emscripten',
+    'node_modules/@think-cell/typescripten/include'
+  ]
+
+  cflags = ['--std=c++20', '-Wno-c++20-extensions']
 
 class libc(MuslInternalLibrary,
            DebugLibrary,
@@ -2080,6 +2091,9 @@ def get_libs_to_link(args, forced, only_forced):
   if settings.SHRINK_LEVEL >= 2 and not settings.LINKABLE and \
      not os.environ.get('EMCC_FORCE_STDLIBS'):
     add_library('libc_optz')
+
+  if '--ltypescripten' in args:
+    add_library('libtypescripten')
 
   if settings.STANDALONE_WASM:
     add_library('libstandalonewasm')

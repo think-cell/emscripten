@@ -343,6 +343,27 @@ Options that are modified or new in *emcc* are listed below:
   [link]
   Links against embind library.  Deprecated: Use ``-lembind`` instead.
 
+``--ts-generate <typescript.d.ts>``
+   [compile] 
+   Path to a TypeScript interface definition file.
+   The type information in the interface definition will be 
+   used to generate a C++ header interface that 
+   lets you make type-checked calls to JavaScript libraries. 
+   Use ``--ts-output`` to provide the name for the header file.
+   Use ``--ltypescripten`` to link against the necessary libraries.
+
+``--ts-generate-lib es2015|dom``
+    [compile]
+    Include the ES2015 JavaScript API or the DOM API. 
+    The ES2015 JavaScript API is implicitly included when the DOM API
+    is included or when the ``--ts-generate`` option is used. 
+    Use ``--ts-output`` to provide the name for the header file.
+    Use ``--ltypescripten`` to link against the necessary libraries.
+
+``--ts-output <file>``
+    [compile]
+    Path to the C++ header file generated from the TypeScript interface definition files.
+
 ``--ignore-dynamic-linking``
   [link]
   Tells the compiler to ignore dynamic linking (the user will need to manually link to the shared libraries later on).

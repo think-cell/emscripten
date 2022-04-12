@@ -9,6 +9,7 @@
     "ws": "^8.6.0"
   },
   "dependencies": {
+    "@think-cell/typescripten": "^1.0.2",
     "acorn": "^8.7.1",
     "google-closure-compiler": "20220502.0.0",
     "html-minifier-terser": "6.1.0",
