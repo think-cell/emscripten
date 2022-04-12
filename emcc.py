@@ -2816,7 +2816,7 @@ def phase_compile_inputs(options, state, newargs, input_files):
     
     cmd = utils.path_from_root('node_modules/@think-cell/typescripten/bin/typescriptenc.js')
     logger.debug(f"running typescriptenc.js: {cmd} {' '.join(ts_inputs)} > {options.ts_output}")
-    shared.run_js_tool(cmd, ts_inputs, cwd=utils.path_from_root('.'), stdout=open(options.ts_output, 'w'))
+    shared.run_js_tool(cmd, ts_inputs, stdout=open(options.ts_output, 'w'))
 
     if state.mode == Mode.TYPESCRIPTEN_ONLY:
       return []
