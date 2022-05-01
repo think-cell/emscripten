@@ -350,7 +350,7 @@ Options that are modified or new in *emcc* are listed below:
    used to generate a C++ header interface that 
    lets you make type-checked calls to JavaScript libraries. 
    Use ``--ts-output`` to provide the name for the header file.
-   Use ``--ltypescripten`` to link against the necessary libraries.
+   Use ``-ltypescripten`` to link against the necessary libraries.
 
 ``--ts-generate-lib es2015|dom``
     [compile]
@@ -358,7 +358,7 @@ Options that are modified or new in *emcc* are listed below:
     The ES2015 JavaScript API is implicitly included when the DOM API
     is included or when the ``--ts-generate`` option is used. 
     Use ``--ts-output`` to provide the name for the header file.
-    Use ``--ltypescripten`` to link against the necessary libraries.
+    Use ``-ltypescripten`` to link against the necessary libraries.
 
 ``--ts-output <file>``
     [compile]

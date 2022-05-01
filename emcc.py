@@ -1277,8 +1277,12 @@ def phase_parse_arguments(state):
   if options.ts_generate or options.ts_generate_lib:
     diagnostics.warning('experimental', '--ts-generate and --ts-generate-lib are experimental and subject to change.')
     if options.ts_output:
+      if os.path.dirname(options.ts_output):
+        newargs += [
+          '-I' + os.path.dirname(options.ts_output)
+        ]
+        
       newargs += [
-        '-I' + os.path.dirname(options.ts_output), 
         '-I' + utils.path_from_root('node_modules/@think-cell/typescripten/include'),
         '-DBOOST_HANA_CONFIG_ENABLE_STRING_UDL'
       ]

@@ -1153,11 +1153,14 @@ def map_to_js_libs(library_name):
     # This is the name of GNU's C++ standard library. We ignore it here
     # for compatability with GNU toolchains.
     'stdc++': [],
+    # typescripten's callback.js is injected with --pre-js flag currently
+    'typescripten': []
   }
   # And some are hybrid and require JS and native libraries to be included
   native_library_map = {
     'embind': 'libembind',
     'GL': 'libGL',
+    'typescripten': 'libtypescripten'
   }
 
   if library_name in library_map:
