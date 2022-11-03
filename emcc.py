@@ -31,6 +31,7 @@ import shlex
 import shutil
 import stat
 import sys
+import tempfile
 import time
 from enum import Enum, unique, auto
 from subprocess import PIPE
@@ -2787,40 +2788,30 @@ def phase_compile_inputs(options, state, newargs, input_files):
 
   # compile TypeScript interface definitions
   if options.ts_generate or options.ts_generate_lib:
-    # always include the base JS library. Currently we always use ES2015 but this 
-    # should be customizable using --ts-generate-lib 
-    ts_inputs = list(map(
-      lambda file: utils.path_from_root(file), 
-      [      
-        'node_modules/typescript/lib/lib.es5.d.ts',
-        'node_modules/typescript/lib/lib.es2015.core.d.ts',
-        'node_modules/typescript/lib/lib.es2015.collection.d.ts',
-        'node_modules/typescript/lib/lib.es2015.iterable.d.ts',
-        'node_modules/typescript/lib/lib.es2015.generator.d.ts',
-        'node_modules/typescript/lib/lib.es2015.promise.d.ts',
-        'node_modules/typescript/lib/lib.es2015.proxy.d.ts',
-        'node_modules/typescript/lib/lib.es2015.reflect.d.ts',
-        'node_modules/typescript/lib/lib.es2015.symbol.d.ts',
-        'node_modules/typescript/lib/lib.es2015.symbol.wellknown.d.ts'
-      ]
-    ))
-     
-    if 'dom' in options.ts_generate_lib:
-      ts_inputs.append(utils.path_from_root('node_modules/typescript/lib/lib.dom.d.ts'))
 
-    ts_inputs += options.ts_generate
-
-    for file in ts_inputs:
+    for file in options.ts_generate:
       if not os.path.isfile(file):
         exit_with_error(f'{file} is not a valid file')
 
-    ts_output_dir = os.path.dirname(options.ts_output)
-    if ts_output_dir and not ts_output_dir in ['.', '..']:
-      utils.safe_ensure_dirs(ts_output_dir)
-    
-    cmd = utils.path_from_root('node_modules/@think-cell/typescripten/bin/typescriptenc.js')
-    logger.debug(f"running typescriptenc.js: {cmd} {' '.join(ts_inputs)} > {options.ts_output}")
-    shared.run_js_tool(cmd, ts_inputs, stdout=open(options.ts_output, 'w'))
+    ts_args = []
+    if options.ts_generate_lib:
+      ts_args += ["--lib"]
+      ts_args += options.ts_generate_lib
+
+    # When list of input files ts_generate is empty,
+    # generate a temporary empty input file for typescriptenc
+    # so we compile just the supplied libraries 
+    with tempfile.NamedTemporaryFile(suffix="d.ts") as f:
+      ts_args += ["--"]
+      ts_args += options.ts_generate if options.ts_generate else [f.name]
+
+      ts_output_dir = os.path.dirname(options.ts_output)
+      if ts_output_dir and not ts_output_dir in ['.', '..']:
+        utils.safe_ensure_dirs(ts_output_dir)
+      
+      cmd = utils.path_from_root('node_modules/@think-cell/typescripten/bin/typescriptenc.js')
+      logger.debug(f"running typescriptenc.js: {cmd} {' '.join(ts_args)} > {options.ts_output}")
+      shared.run_js_tool(cmd, ts_args, stdout=open(options.ts_output, 'w'))
 
     if state.mode == Mode.TYPESCRIPTEN_ONLY:
       return []
@@ -3241,10 +3232,7 @@ def parse_args(newargs):
     elif check_arg('--ts-generate'):
       options.ts_generate.append(consume_arg_file())      
     elif check_arg('--ts-generate-lib'):
-      lib = consume_arg()
-      tslibs = ['es2015', 'dom']
-      if lib not in tslibs:
-        exit_with_error('invalid TypeScript library specified: `%s` (must be one of %s)' % (lib, tslibs))
+      lib = consume_arg()      
       options.ts_generate_lib.append(lib)
     elif check_arg('--ts-output'):
       options.ts_output = consume_arg()

@@ -352,11 +352,17 @@ Options that are modified or new in *emcc* are listed below:
    Use ``--ts-output`` to provide the name for the header file.
    Use ``-ltypescripten`` to link against the necessary libraries.
 
-``--ts-generate-lib es2015|dom``
+``--ts-generate-lib <lib.d.ts>``
     [compile]
-    Include the ES2015 JavaScript API or the DOM API. 
-    The ES2015 JavaScript API is implicitly included when the DOM API
-    is included or when the ``--ts-generate`` option is used. 
+    Include the named typescript interface declaration file from 
+    ``node_modules/typescripten/lib``. 
+    If your typescript file explicitly references other typescript
+    libraries, these will be parsed and output too. 
+    Otherwise, only the ES2015 JavaScript API ``lib.es2015.d.ts`` 
+    (and not ``lib.dom.d.ts``) is implicitly included 
+    by typescripten when this option is not set. 
+    See the `TypeScript repository <https://github.com/microsoft/TypeScript/tree/main/lib>` 
+    for the available libraries.
     Use ``--ts-output`` to provide the name for the header file.
     Use ``-ltypescripten`` to link against the necessary libraries.
 
